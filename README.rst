@@ -24,6 +24,6 @@ To install the latest version from PyPI::
 To get autocompletion to work under bash::
 
     pip install argcomplete
-    eval $(register-python-argcomplete kot)
+    eval "$(register-python-argcomplete kot)"
 
 See `argcomplete documentation <https://pypi.org/project/argcomplete/>`__ for information about other platforms.

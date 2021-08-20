@@ -113,7 +113,7 @@ def main():
     bucket = parsed_url.netloc
     key = parsed_url.path.lstrip('/')
 
-    client = boto3.client('s3')
+    client = s3_client(args.url)
     body = client.get_object(Bucket=bucket, Key=key)['Body']
 
     while True:

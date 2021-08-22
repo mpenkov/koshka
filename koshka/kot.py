@@ -4,7 +4,7 @@ Like GNU cat, but with autocompletion for S3.
 
 To get autocompletion to work under bash:
 
-    eval $(register-python-argcomplete kot
+    eval "$(register-python-argcomplete kot)"
 
 See <https://pypi.org/project/argcomplete/> for more details.
 """

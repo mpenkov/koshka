@@ -1,4 +1,17 @@
+import os
 import setuptools
+
+
+def get_version():
+    curr_dir = os.path.dirname(os.path.abspath(__file__))
+    with open(os.path.join(curr_dir, 'koshka', 'version.py')) as fin:
+        line = fin.readline().strip()
+        parts = line.split(' ')
+        assert len(parts) == 3
+        assert parts[0] == '__version__'
+        assert parts[1] == '='
+        return parts[2].strip('\'"')
+
 
 with open('README.rst') as fin:
     long_description = fin.read()
@@ -19,5 +32,5 @@ setuptools.setup(
     name='koshka',
     packages=['koshka'],
     url='https://github.com/mpenkov/koshka',
-    version='0.1',
+    version=get_version(),
 )

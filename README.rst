@@ -1,7 +1,7 @@
 kot - GNU cat with autocompletion for S3
 ========================================
 
-<a href="https://en.wikipedia.org/wiki/Uncle_Fedya,_His_Dog,_and_His_Cat#Matroskin_the_Cat"><img src="matroskin.jpeg" alt="Kot Matroskin" size="300" /></a>
+![https://en.wikipedia.org/wiki/Uncle_Fedya,_His_Dog,_and_His_Cat#Matroskin_the_Cat](matroskin.jpeg)
 
 Usage
 -----

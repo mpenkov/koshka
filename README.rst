@@ -75,6 +75,7 @@ To get autocompletion to work under bash::
 
     pip install argcomplete
     eval "$(kot --register)"
+    eval "$(kote --register)"
 
 See `argcomplete documentation <https://pypi.org/project/argcomplete/>`__ for information about other platforms.
 

@@ -17,12 +17,12 @@ Autocompleting prefixes::
     $ kot s3://mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
-Autocompleting output prefixes:
+Autocompleting output prefixes::
 
     $ kot README.rst -o //mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
-Editing a remote file transparently (again, with autocompletion):
+Editing a remote file transparently (again, with autocompletion)::
 
     $ kote //mybucket/myfile0.txt{enter}
     {$EDITOR opens a copy of the file locally}

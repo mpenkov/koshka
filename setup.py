@@ -25,6 +25,7 @@ setuptools.setup(
     entry_points={
         'console_scripts': {
             'kot=koshka.kot:main',
+            'kote=koshka.kote:main',
         }
     },
     install_requires=['argcomplete'],

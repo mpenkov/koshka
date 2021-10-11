@@ -1,7 +1,8 @@
 kot - GNU cat with autocompletion for S3
 ========================================
 
-![https://en.wikipedia.org/wiki/Uncle_Fedya,_His_Dog,_and_His_Cat#Matroskin_the_Cat](matroskin.jpeg)
+.. image:: matroskin.jpeg
+  :target: https://en.wikipedia.org/wiki/Uncle_Fedya,_His_Dog,_and_His_Cat#Matroskin_the_Cat
 
 Usage
 -----
@@ -16,12 +17,12 @@ Autocompleting prefixes::
     $ kot s3://mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
-Autocompleting output prefixes:
+Autocompleting output prefixes::
 
     $ kot README.rst -o //mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
-Editing a remote file transparently (again, with autocompletion):
+Editing a remote file transparently (again, with autocompletion)::
 
     $ kote //mybucket/myfile0.txt{enter}
     {$EDITOR opens a copy of the file locally}
@@ -74,6 +75,7 @@ To get autocompletion to work under bash::
 
     pip install argcomplete
     eval "$(kot --register)"
+    eval "$(kote --register)"
 
 See `argcomplete documentation <https://pypi.org/project/argcomplete/>`__ for information about other platforms.
 

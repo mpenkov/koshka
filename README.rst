@@ -102,7 +102,7 @@ An example::
     [s3://myotherbucket]
     profile_name = myprofile
 
-    [https://mydataserver.developers.mycompany.com/README.md]
+    [https://mydataserver.developers.mycompany.com]
     alias = data
 
 The section names are interpreted as regular expressions.

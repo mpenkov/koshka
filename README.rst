@@ -1,5 +1,5 @@
-kot - GNU cat with autocompletion for S3
-========================================
+kot - GNU cat over the network with autocompletion
+==================================================
 
 .. image:: https://raw.githubusercontent.com/mpenkov/koshka/master/matroskin.jpeg
   :target: https://en.wikipedia.org/wiki/Uncle_Fedya,_His_Dog,_and_His_Cat#Matroskin_the_Cat
@@ -7,17 +7,17 @@ kot - GNU cat with autocompletion for S3
 Usage
 -----
 
-Autocompleting bucket names::
+Autocompleting S3 bucket names::
 
     $ kot s3://my{tab}
     //mybucket      //mybucket1     //mybucket2
 
-Autocompleting prefixes::
+Autocompleting S3 prefixes::
 
     $ kot s3://mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
-Autocompleting output prefixes::
+Autocompleting S3 output prefixes::
 
     $ kot README.rst -o //mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
@@ -28,8 +28,18 @@ Editing a remote file transparently (again, with autocompletion)::
     {$EDITOR opens a copy of the file locally}
     {Once $EDITOR exits, the local file overwrites the remote destination}
 
+Aliasing::
+
+    $ kot data/README.md{tab}
+    https://mydataserver.developers.mycompany.com/README.md
+
+Use this for long-ish URLs that you access frequently.
+See the configuration section below for alias settings.
+
 Why?
 ----
+
+The project initially focused on S3, but then expanded to HTTP/S as well.
 
 The existing `awscli <https://pypi.org/project/awscli/>`__ tool does not support autocompletion.
 If you don't know the exact key, you need to look it up first, using an additional command::
@@ -91,6 +101,9 @@ An example::
 
     [s3://myotherbucket]
     profile_name = myprofile
+
+    [https://mydataserver.developers.mycompany.com/README.md]
+    alias = data
 
 The section names are interpreted as regular expressions.
 So, in the above example, `kot` will use `http://localhost:4566` as the endpoint URL for handle all requests starting with `s3://mybucket`.

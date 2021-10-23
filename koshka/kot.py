@@ -13,103 +13,48 @@ or the slightly more terse:
 See <https://pypi.org/project/argcomplete/> for more details.
 """
 import argparse
-import configparser
 import io
 import urllib.parse
-import re
 import os
 import subprocess
 import sys
 
 import argcomplete  # type: ignore
-import boto3  # type: ignore
 import smart_open  # type: ignore
 
+import koshka.httpls
+import koshka.s3
+
 _DEBUG = os.environ.get('KOT_DEBUG')
+
 
 #
 # TODO:
 #
 # - [ ] More command-line options for compatibility with GNU cat
 #
-
-
-def s3_client(prefix):
-    endpoint_url = profile_name = None
-    try:
-        parser = configparser.ConfigParser()
-        parser.read(os.path.expanduser('~/kot.cfg'))
-        for section in parser.sections():
-            if re.match(section, prefix):
-                endpoint_url = parser[section].get('endpoint_url') or None
-                profile_name = parser[section].get('profile_name') or None
-    except IOError:
-        pass
-
-    session = boto3.Session(profile_name=profile_name)
-    return session.client('s3', endpoint_url=endpoint_url)
-
-
-def list_bucket(client, scheme, bucket, prefix, delimiter='/'):
-    response = client.list_objects(Bucket=bucket, Prefix=prefix, Delimiter='/')
-    candidates = [
-        f'{scheme}://{bucket}/{thing["Key"]}'
-        for thing in response.get('Contents', [])
-    ]
-    candidates += [
-        f'{scheme}://{bucket}/{thing["Prefix"]}'
-        for thing in response.get('CommonPrefixes', [])
-    ]
-    return candidates
-
-
-def s3_matches(prefix):
-    parsed_url = urllib.parse.urlparse(prefix)
-    client = s3_client(prefix)
-
-    bucket, path = parse_s3_url(prefix)
-    if not path:
-        response = client.list_buckets()
-        buckets = [
-            b['Name']
-            for b in response['Buckets'] if b['Name'].startswith(bucket)
-        ]
-        if len(buckets) == 0:
-            return []
-        elif len(buckets) > 1:
-            urls = [f'{parsed_url.scheme}://{bucket}' for bucket in buckets]
-            return urls
-        else:
-            bucket = buckets[0]
-            path = ''
-
-    return list_bucket(client, parsed_url.scheme, bucket, path)
-
-
-def local_matches(prefix):
-    try:
-        if os.path.exists(prefix):
-            return [prefix]
-
-        subdir, start = os.path.split(prefix)
-        return [
-            os.path.join(subdir, f)
-            for f in os.listdir(subdir) if f.startswith(start)
-        ]
-    except OSError:
-        return [os.listdir()]
-
-
 def completer(prefix, parsed_args, **kwargs):
     try:
-        #
-        # TODO: handle non-S3 URLs here
-        #
         parsed_url = urllib.parse.urlparse(prefix)
+
         if parsed_url.scheme == 's3':
-            return s3_matches(prefix)
-        else:
-            return local_matches(prefix)
+            return koshka.s3.complete(prefix)
+
+        if parsed_url.scheme in ('http', 'https'):
+            return koshka.httpls.complete(prefix)
+
+        try:
+            if os.path.exists(prefix):
+                return [prefix]
+
+            subdir, start = os.path.split(prefix)
+            return [
+                os.path.join(subdir, f)
+                for f in os.listdir(subdir) if f.startswith(start)
+            ]
+        except OSError:
+            return [os.listdir()]
+
     except Exception as err:
         argcomplete.warn(f'uncaught exception err: {err}')
         return []
@@ -119,15 +64,6 @@ def debug():
     prefix = sys.argv[1]
     result = completer(prefix, None)
     print('\n'.join(result))
-
-
-def parse_s3_url(url):
-    parsed_url = urllib.parse.urlparse(url)
-    assert parsed_url.scheme == 's3'
-
-    bucket = parsed_url.netloc
-    key = parsed_url.path.lstrip('/')
-    return bucket, key
 
 
 def main():
@@ -144,7 +80,11 @@ def main():
     #
     # Inspired by curl.  GNU cat does not use -o, so it's OK to use it here.
     #
-    parser.add_argument('-o', '--output', help='write output here instead of stdout').completer = completer
+    parser.add_argument(
+        '-o',
+        '--output',
+        help='write output here instead of stdout',
+    ).completer = completer
     argcomplete.autocomplete(parser, validator=validator)
     args = parser.parse_args()
 
@@ -164,16 +104,16 @@ def main():
         parsed_url = urllib.parse.urlparse(args.output)
         tp = {}
         if parsed_url.scheme == 's3':
-            client = s3_client(args.output)
+            client = koshka.s3._client(args.output)
             tp['client'] = client
         writer = smart_open.open(args.output, 'wb', compression='disable', transport_params=tp)
 
     for url in args.urls:
         parsed_url = urllib.parse.urlparse(url)
         if parsed_url.scheme == 's3':
-            bucket, key = parse_s3_url(url)
-            client = s3_client(url)
-            body = client.get_object(Bucket=bucket, Key=key)['Body']
+            body = koshka.s3.open(url)
+        elif parsed_url.scheme in ('http', 'https'):
+            body = koshka.httpls.open(url)
         else:
             body = open(url, 'rb')
 

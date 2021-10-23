@@ -13,6 +13,7 @@ or the slightly more terse:
 See <https://pypi.org/project/argcomplete/> for more details.
 """
 import argparse
+import configparser
 import io
 import urllib.parse
 import os
@@ -33,7 +34,26 @@ _DEBUG = os.environ.get('KOT_DEBUG')
 #
 # - [ ] More command-line options for compatibility with GNU cat
 #
+def _dealias(prefix: str) -> str:
+    try:
+        parser = configparser.ConfigParser()
+        parser.read(os.path.expanduser('~/kot.cfg'))
+        for section in parser.sections():
+            try:
+                alias = parser[section]['alias']
+            except KeyError:
+                continue
+
+            if prefix.startswith(alias):
+                return prefix.replace(alias, section)
+    except IOError:
+        pass
+
+    return prefix
+
+
 def completer(prefix, parsed_args, **kwargs):
+    prefix = _dealias(prefix)
     try:
         parsed_url = urllib.parse.urlparse(prefix)
 
@@ -109,6 +129,7 @@ def main():
         writer = smart_open.open(args.output, 'wb', compression='disable', transport_params=tp)
 
     for url in args.urls:
+        url = _dealias(url)
         parsed_url = urllib.parse.urlparse(url)
         if parsed_url.scheme == 's3':
             body = koshka.s3.open(url)

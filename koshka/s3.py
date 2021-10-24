@@ -80,8 +80,12 @@ def complete(prefix):
             b['Name']
             for b in response['Buckets'] if b['Name'].startswith(bucket)
         ]
+        #
+        # Publicly visible buckets won't show up in list_buckets, so we should
+        # try accessing it explicitly below.
+        #
         if len(buckets) == 0:
-            return []
+            pass
         elif len(buckets) > 1:
             urls = [f'{parsed_url.scheme}://{bucket}' for bucket in buckets]
             return urls

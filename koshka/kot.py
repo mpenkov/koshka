@@ -132,7 +132,7 @@ def main():
         url = _dealias(url)
         parsed_url = urllib.parse.urlparse(url)
         if parsed_url.scheme == 's3':
-            body = koshka.s3.open(url)
+            body = koshka.s3.open(url, 'rb')
         elif parsed_url.scheme in ('http', 'https'):
             body = koshka.httpls.open(url)
         else:

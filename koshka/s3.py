@@ -5,6 +5,7 @@ import urllib
 
 
 import boto3  # type: ignore
+import smart_open
 
 
 def _client(prefix):
@@ -91,8 +92,6 @@ def complete(prefix):
     return _list_bucket(client, parsed_url.scheme, bucket, path)
 
 
-def open(url):
-    bucket, key = _parse(url)
-    client = _client(url)
-    body = client.get_object(Bucket=bucket, Key=key)['Body']
-    return body
+def open(url, mode):
+    transport_params = {'client': _client(url)}
+    return smart_open.open(url, mode, transport_params=transport_params)

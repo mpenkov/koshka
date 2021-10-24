@@ -20,7 +20,7 @@ setuptools.setup(
     author='Michael Penkov',
     author_email='m@penkov.dev',
     classifiers=[],
-    description='Like GNU cat, but with autocompletion for S3.',
+    description='GNU cat over the network with autocompletion',
     long_description=long_description,
     entry_points={
         'console_scripts': {

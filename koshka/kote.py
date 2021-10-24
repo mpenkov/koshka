@@ -5,7 +5,7 @@ Downloads the remote file to a temporary file, opens the editor, and then
 uploads the edited copy.
 """
 import argparse
-import functools
+import contextlib
 import io
 import os
 import subprocess
@@ -14,12 +14,24 @@ import tempfile
 import urllib.parse
 
 import argcomplete  # type: ignore
-import smart_open  # type: ignore
 
-from . import kot
+import koshka.kot
+import koshka.s3
 
 
 EDITOR = os.environ.get('EDITOR', 'vim')
+
+
+@contextlib.contextmanager
+def clever_open(url, mode):
+    parsed_url = urllib.parse.urlparse(url)
+    if parsed_url.scheme == 's3':
+        body = koshka.s3.open(url, mode)
+    elif parsed_url.scheme in ('http', 'https'):
+        body = koshka.httpls.open(url)
+    else:
+        body = open(url, mode)
+    yield body
 
 
 def main():
@@ -30,7 +42,8 @@ def main():
         description="kot editor: edit a remote file as if it was local",
         epilog="To get autocompletion to work under bash: eval $(kote --register)",
     )
-    parser.add_argument('url', nargs='?').completer = kot.completer  # type: ignore
+    parser.add_argument('url', nargs='?').completer = koshka.kot.completer  # type: ignore
+    parser.add_argument('-R', '--readonly', action='store_true')
     parser.add_argument('--register', action='store_true', help='integrate with the current shell')
 
     argcomplete.autocomplete(parser, validator=validator)
@@ -49,30 +62,28 @@ def main():
     if not args.url:
         parser.error('I need a URL to edit')
 
-    if os.path.isfile(args.url):
-        subprocess.run([EDITOR, args.url])
-        return
-
     parsed_url = urllib.parse.urlparse(args.url)
-    assert parsed_url.scheme == 's3'
+    if parsed_url.scheme in ('http', 'https'):
+        args.readonly = True
 
-    clever_open = functools.partial(
-        smart_open.open,
-        compression='disable',
-        transport_params={'client': kot.s3_client(args.url)},
-    )
-    with tempfile.NamedTemporaryFile() as tmp:
+    _, filename = os.path.split(parsed_url.path)
+    prefix, suffix = os.path.splitext(filename)
+    with tempfile.NamedTemporaryFile(prefix=prefix + '-', suffix=suffix) as tmp:
         with clever_open(args.url, 'rb') as fin:
             _cat(fin, tmp)
+        tmp.flush()
 
         statinfo = os.stat(tmp.name)
+
+        if args.readonly:
+            os.chmod(tmp.name, 0o400)
+
         subprocess.check_call([EDITOR, tmp.name])
 
         #
         # Skip upload if the file has not changed
         #
-        if os.stat(tmp.name).st_mtime > statinfo.st_mtime:
-            breakpoint()
+        if not args.readonly and os.stat(tmp.name).st_mtime > statinfo.st_mtime:
             with open(tmp.name, 'rb') as fin:
                 with clever_open(args.url, 'wb') as fout:
                     _cat(fin, fout)

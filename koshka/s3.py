@@ -64,38 +64,6 @@ def _list_bucket(client, scheme, bucket, prefix, querystr='', delimiter='/'):
     return candidates
 
 
-def _parse(url):
-    parsed_url = urllib.parse.urlparse(url)
-    assert parsed_url.scheme == 's3'
-
-    bucket = parsed_url.netloc
-    key = parsed_url.path.lstrip('/')
-    return bucket, key
-
-
-def _matches(prefix):
-    parsed_url = urllib.parse.urlparse(prefix)
-    client = _client(prefix)
-
-    bucket, path = _parse(prefix)
-    if not path:
-        response = client.list_buckets()
-        buckets = [
-            b['Name']
-            for b in response['Buckets'] if b['Name'].startswith(bucket)
-        ]
-        if len(buckets) == 0:
-            return []
-        elif len(buckets) > 1:
-            urls = [f'{parsed_url.scheme}://{bucket}' for bucket in buckets]
-            return urls
-        else:
-            bucket = buckets[0]
-            path = ''
-
-    return _list_bucket(client, parsed_url.scheme, bucket, path)
-
-
 def complete(prefix):
     parsed_url = urllib.parse.urlparse(prefix)
     client = _client(prefix)

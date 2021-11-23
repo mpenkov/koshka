@@ -17,6 +17,11 @@ Autocompleting S3 prefixes::
     $ kot s3://mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
+Autocompleting S3 versions (for more about versions, see below)::
+
+    $ kot s3://myversionedbucket/key{tab}
+    2021-03-23T03:46:03  2021-06-25T01:35:06
+
 Autocompleting S3 output prefixes::
 
     $ kot README.rst -o //mybucket/myf{tab}
@@ -108,3 +113,20 @@ An example::
 The section names are interpreted as regular expressions.
 So, in the above example, `kot` will use `http://localhost:4566` as the endpoint URL for handle all requests starting with `s3://mybucket`.
 Similarly, it will use the `myprofile` AWS profile to handle all requests starting with `s3://myotherbucket`.
+
+S3 Object Versions
+------------------
+
+If the bucket supports versioning, `kot` will list the datestamps of each version, as opposed to the arbitrary version IDs assigned by AWS.
+For example, you may see URLs like:
+
+    s3://bucket/key?LastModified=2021-03-23T03:46:03
+
+Under the covers, `kot` will convert that datestamp to a version ID before attempting to access the content.
+This is because `kot` is designed for consumption by human eyeballs, unlike `boto3` and friends.
+By seeing the datestamp, the human user is in a better position to decide which version to access.
+There is an edge-case where two versions are less than a second apart, meaning their timestamps will be identical, but this is rare, and `kot` does not attempt to handle it.
+
+In order to represent the version as part of the URL in the command-line interface, `kot` uses the querystring part of the URL, as this is intuitive to human users, and I could not think of better alternatives.
+Unfortunately, S3 URLs don't have querystring components, and can actually contain the querystring separator character (?).
+Fortunately, this is a rare edge case, and `kot` does not attempt to handle it.

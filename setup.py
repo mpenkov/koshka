@@ -26,6 +26,7 @@ setuptools.setup(
         'console_scripts': {
             'kot=koshka.kot:main',
             'kote=koshka.kote:main',
+            'kssh=koshka.kssh:main',
         }
     },
     install_requires=['argcomplete'],

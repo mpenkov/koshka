@@ -29,8 +29,8 @@ setuptools.setup(
             'kssh=koshka.kssh:main',
         }
     },
-    install_requires=['argcomplete'],
-    keywords=['cat'],
+    install_requires=['argcomplete', 'smart_open[s3,http]'],
+    keywords=['cat', 's3', 'autocomplete'],
     name='koshka',
     packages=['koshka'],
     url='https://github.com/mpenkov/koshka',

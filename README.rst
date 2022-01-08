@@ -27,7 +27,7 @@ Autocompleting S3 output prefixes::
     $ kot README.rst -o //mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
-Autocompleting RESTful API endpoints that speak JSON:
+Autocompleting RESTful API endpoints that speak JSON::
 
     $ kot https://example.com/api
     {

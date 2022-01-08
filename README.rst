@@ -27,6 +27,19 @@ Autocompleting S3 output prefixes::
     $ kot README.rst -o //mybucket/myf{tab}
     //mybucket/myfile0.txt      //mybucket/myfile0.json
 
+Autocompleting RESTful API endpoints that speak JSON:
+
+    $ kot https://example.com/api
+    {
+        "customers": "http://example.com/api/customers",
+        "locations": "http://example.com/api/locations",
+        "products": "http://example.com/api/products"
+    }
+    $ kot https://example.com/api/{tab}
+    //example.com/api/customers
+    //example.com/api/locations
+    //example.com/api/products
+
 Editing a remote file transparently (again, with autocompletion)::
 
     $ kote //mybucket/myfile0.txt{enter}

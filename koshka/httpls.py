@@ -1,5 +1,6 @@
 import configparser
 import html.parser
+import json
 import os
 import re
 
@@ -43,6 +44,18 @@ def _auth(prefix: str) -> Optional[Tuple[str, str]]:
     return None
 
 
+def _traverse_json(obj, prefix, urls):
+    """Cherry-pick any URLs beginning with the prefix."""
+    if isinstance(obj, str) and obj.startswith(prefix):
+        urls.append(obj)
+    elif isinstance(obj, list):
+        for elem in obj:
+            _traverse_json(elem, prefix, urls)
+    elif isinstance(obj, dict):
+        for elem in obj.values():
+            _traverse_json(elem, prefix, urls)
+
+
 def _complete(prefix):
     if not prefix.endswith('/'):
         prefix += '/'
@@ -50,9 +63,18 @@ def _complete(prefix):
     get = requests.get(prefix, auth=_auth(prefix))
     get.raise_for_status()
 
+    if 'json' in get.headers['Content-Type']:
+        document = json.loads(get.text)
+        urls = list()
+        _traverse_json(document, prefix, urls)
+        return sorted(set(urls))
+
     parser = _HtmlParser()
     parser.feed(get.text)
     hyperlinks = sorted(set(parser.hyperlinks))
+    #
+    # FIXME: check if h is relative or absolute
+    #
     return [prefix + h for h in hyperlinks]
 
 
@@ -63,7 +85,11 @@ def complete(prefix: str) -> List[str]:
     # listing of the parent.
     #
     try:
-        return _complete(prefix)
+        links = _complete(prefix)
+        if links:
+            return links
+        else:
+            return [prefix]
     except Exception:
         pass
 
@@ -85,3 +111,8 @@ def open(url):
         tp['user'] = username
         tp['password'] = password
     return smart_open.open(url, mode='rb', transport_params=tp, compression='disable')
+
+
+if __name__ == '__main__':
+    import sys
+    print(complete(sys.argv[1]))

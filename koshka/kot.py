@@ -27,6 +27,7 @@ import koshka.httpls
 import koshka.s3
 
 _DEBUG = os.environ.get('KOT_DEBUG')
+_BREAK = os.environ.get('KOT_BREAK')
 
 
 #
@@ -46,6 +47,8 @@ def _dealias(prefix: str) -> str:
 
             if prefix.startswith(alias):
                 return prefix.replace(alias, section)
+            elif alias.startswith(prefix):
+                return section
     except IOError:
         pass
 
@@ -81,6 +84,8 @@ def completer(prefix, parsed_args, **kwargs):
 
 
 def debug():
+    if _BREAK:
+        breakpoint()
     prefix = sys.argv[1]
     result = completer(prefix, None)
     print('\n'.join(result))

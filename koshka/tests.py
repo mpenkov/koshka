@@ -8,6 +8,8 @@ import subprocess
 import sys
 import time
 
+import pytest
+
 import koshka.kot
 import koshka.httpls
 import koshka.s3
@@ -40,10 +42,10 @@ def test_s3_complete():
 
 
 @contextlib.contextmanager
-def webserver(port=8080, cwd=os.path.dirname(__file__)):
+def webserver(port=8888, cwd=os.path.dirname(__file__)):
     try:
         webserver_sub = subprocess.Popen(
-            [sys.executable, '-m', 'http.server', '8080'],
+            [sys.executable, '-m', 'http.server', str(port)],
             cwd=os.path.dirname(__file__),
         )
         time.sleep(1)
@@ -54,5 +56,40 @@ def webserver(port=8080, cwd=os.path.dirname(__file__)):
 
 def test_https_complete():
     with webserver():
-        contents = koshka.httpls.complete('http://localhost:8080')
-        assert 'http://localhost:8080/tests.py' in contents
+        contents = koshka.httpls.complete('http://localhost:8888')
+        assert 'http://localhost:8888/tests.py' in contents
+
+
+def test_traverse_json():
+    prefix = "https://example.com/api"
+    obj = {
+        "customers": f"{prefix}/customers",
+        "locations": f"{prefix}/locations",
+        "products": f"{prefix}/products",
+        "continents": [
+            f"{prefix}/continents/africa",
+            f"{prefix}/continents/asia",
+            f"{prefix}/continents/etc",
+        ],
+        "currencies": [
+            {"name": "dollar", "url": f'{prefix}/currencies/dollar'},
+            {"name": "rouble", "url": f'{prefix}/currencies/rouble'},
+            {"name": "yen", "url": f'{prefix}/currencies/yen'},
+        ]
+    }
+    urls = []
+
+    koshka.httpls._traverse_json(obj, prefix, urls)
+
+    assert f'{prefix}/customers' in urls
+    assert f'{prefix}/continents/africa' in urls
+    assert f'{prefix}/currencies/rouble' in urls
+
+
+@pytest.mark.skip('dummy web API not working yet')
+def test_https_complete_rest():
+    with webserver():
+        contents = koshka.httpls.complete('http://localhost:8888/sampleapi.json')
+        assert 'http://localhost:8888/sampleapi/customers' in contents
+        assert 'http://localhost:8888/sampleapi/locations' in contents
+        assert 'http://localhost:8888/sampleapi/products' in contents

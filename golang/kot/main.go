@@ -1,13 +1,13 @@
 package main
 
-// [ ] Read config file for credentials, etc.
+// [x] Read config file for credentials, etc.
 // [x] List S3 objects matching a given prefix
 // [x] Stream a specific S3 object
 // [x] Integrate with autocompletion
 // [ ] Handle HTTP/S
 // [ ] Handle local files
 // [ ] Any other backends?
-// [ ] Tests!!
+// [.] Tests!!
 // [ ] GNU cat-compatible command-line flags
 // [ ] Proper packaging
 // [ ] CI to build binaries for MacOS, Windows and Linux
@@ -16,12 +16,15 @@ package main
 // [ ] How to package this thing without having to build separate binaries for kot, kedit, etc?
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
@@ -30,12 +33,70 @@ import (
 	"github.com/posener/complete/v2"
 )
 
+func findConfig(prefix string, path string) (map[string]string, error) {
+	if path == "" {
+		path = os.ExpandEnv("$HOME/kot.cfg")
+	}
+
+	fin, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer fin.Close()
+	reader := bufio.NewReader(fin)
+
+	// open the config file
+	// look for the first section that matches the prefix
+	// will need to test this thing...
+	section := make(map[string]string)
+	is_inside := false
+	for true {
+		line, err := reader.ReadString('\n')
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
+		line = strings.Trim(line, "\n")
+
+		if len(line) == 0 || line[0] == '#' {
+			// Skip comments
+			continue
+		}
+
+		if line[0] == '[' && line[len(line) - 1] == ']' {
+			section_name := line[1:len(line) - 1]
+			if is_inside {
+				// End of the relevant section
+				return section, nil
+			}
+			if strings.HasPrefix(section_name, prefix) {
+				is_inside = true
+			}
+		} else if is_inside {
+			parts := strings.Split(line, "=")
+			if len(parts) != 2 {
+				return nil, errors.New(fmt.Sprintf("malformed line: %q", line))
+			}
+			key := strings.Trim(parts[0], " ")
+			value := strings.Trim(parts[1], " ")
+			section[key] = value
+		}
+	}
+	if is_inside {
+		return section, nil
+	}
+
+	return nil, errors.New(fmt.Sprintf("no matches found for prefix: %q", prefix))
+}
+
 func s3_split(rawUrl string) (bucket, key string) {
 	parsedUrl, err := url.Parse(rawUrl)
 	if err != nil {
 		log.Fatal(err)
 	}
-	
+
 	if parsedUrl.Scheme != "s3" {
 		log.Fatalf("not an S3 url: %s", rawUrl)
 	}

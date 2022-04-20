@@ -4,6 +4,8 @@ package main
 // [x] List S3 objects matching a given prefix
 // [x] Stream a specific S3 object
 // [x] Integrate with autocompletion
+// [ ] Support for S3 versions
+// [ ] Support for aliases
 // [ ] Handle HTTP/S
 // [ ] Handle local files
 // [ ] Any other backends?
@@ -12,7 +14,7 @@ package main
 // [ ] Proper packaging
 // [ ] CI to build binaries for MacOS, Windows and Linux
 
-// [ ] Where's the AWS SDK golang reference?
+// [x] Where's the AWS SDK golang reference?  https://pkg.go.dev/github.com/aws/aws-sdk-go-v2
 // [ ] How to package this thing without having to build separate binaries for kot, kedit, etc?
 
 import (
@@ -71,7 +73,7 @@ func findConfig(prefix string, path string) (map[string]string, error) {
 				// End of the relevant section
 				return section, nil
 			}
-			if strings.HasPrefix(section_name, prefix) {
+			if strings.HasPrefix(prefix, section_name) {
 				is_inside = true
 			}
 		} else if is_inside {
@@ -106,12 +108,31 @@ func s3_split(rawUrl string) (bucket, key string) {
 	return
 }
 
-func s3_cat(url string) {
-	// TODO: use special configuration for the prefix
-	bucket, key := s3_split(url)
-	// log.Printf("bucket: %s key: %s", bucket, key)
+func s3_configure(url string) (aws.Config, error) {
+	kotConfig, err := findConfig(url, "")
+	log.Printf("url: %s kotConfig: %s", url, kotConfig)
+	if err == nil {
+		if endpointUrl, ok := kotConfig["endpoint_url"]; ok {
+			log.Printf("endpointUrl: %s", endpointUrl)
+			// https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/
+			customResolver := aws.EndpointResolverWithOptionsFunc(
+				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+					return aws.Endpoint{URL: endpointUrl, HostnameImmutable: true}, nil
+				},
+			)
+			return config.LoadDefaultConfig(
+				context.TODO(),
+				config.WithEndpointResolverWithOptions(customResolver),
+			)
+		}
+	}
+	return config.LoadDefaultConfig(context.TODO())
+}
 
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+func s3_cat(url string) {
+	bucket, key := s3_split(url)
+
+	cfg, err := s3_configure(url)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -145,8 +166,7 @@ func s3_list(prefix string, silent bool) (candidates []string) {
 	}
 
 	bucket, prefix := s3_split(prefix)
-
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := s3_configure(prefix)
 	if err != nil && silent {
 		return candidates
 	} else if err != nil {
@@ -231,6 +251,7 @@ func s3_list(prefix string, silent bool) (candidates []string) {
 type myPredictorType int
 
 func (mpt myPredictorType) Predict(prefix string) (candidates []string) {
+	// TODO: alias completion goes here
 	parsedUrl, err := url.Parse(prefix)
 	if err != nil {
 		// log.Fatal(err)

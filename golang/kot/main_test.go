@@ -27,6 +27,9 @@ func Test_findConfig(t *testing.T) {
 	testCases["s3://mybucket"] = map[string]string{
 		"endpoint_url": "http://localhost:4566",
 	}
+	testCases["s3://mybucket/whatever.txt.gz"] = map[string]string{
+		"endpoint_url": "http://localhost:4566",
+	}
 	testCases["https://example.com"] = map[string]string{
 		"username": "secret",
 		"password": "nonono",

@@ -35,6 +35,9 @@ import (
 	"github.com/posener/complete/v2"
 )
 
+//
+// Load the relevant configuration from ~/kot.cfg
+//
 func findConfig(prefix string, path string) (map[string]string, error) {
 	if path == "" {
 		path = os.ExpandEnv("$HOME/kot.cfg")
@@ -110,10 +113,8 @@ func s3_split(rawUrl string) (bucket, key string) {
 
 func s3_configure(url string) (aws.Config, error) {
 	kotConfig, err := findConfig(url, "")
-	log.Printf("url: %s kotConfig: %s", url, kotConfig)
 	if err == nil {
 		if endpointUrl, ok := kotConfig["endpoint_url"]; ok {
-			log.Printf("endpointUrl: %s", endpointUrl)
 			// https://aws.github.io/aws-sdk-go-v2/docs/configuring-sdk/endpoints/
 			customResolver := aws.EndpointResolverWithOptionsFunc(
 				func(service, region string, options ...interface{}) (aws.Endpoint, error) {
@@ -129,19 +130,19 @@ func s3_configure(url string) (aws.Config, error) {
 	return config.LoadDefaultConfig(context.TODO())
 }
 
-func s3_cat(url string) {
+func s3_cat(url string) error {
 	bucket, key := s3_split(url)
 
 	cfg, err := s3_configure(url)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("unable to load configuration for url %q: %w", url, err)
 	}
 
 	client := s3.NewFromConfig(cfg)
 	params := &s3.GetObjectInput{Bucket: aws.String(bucket), Key: aws.String(key)}
 	response, err := client.GetObject(context.TODO(), params)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("unable to read from url %q: %w", url, err)
 	}
 
 	defer response.Body.Close()
@@ -155,22 +156,22 @@ func s3_cat(url string) {
 		if err == io.EOF {
 			break
 		} else if err != nil {
-			log.Fatal(err)
+			return fmt.Errorf("unable to read stream from url %q: %w", url, err)
 		}
 	}
+
+	return nil
 }
 
-func s3_list(prefix string, silent bool) (candidates []string) {
+func s3_list(prefix string) (candidates []string, err error) {
 	if prefix == "" {
-		return candidates
+		return candidates, errors.New("unable to list empty prefix")
 	}
 
-	bucket, prefix := s3_split(prefix)
+	bucket, keyPrefix := s3_split(prefix)
 	cfg, err := s3_configure(prefix)
-	if err != nil && silent {
-		return candidates
-	} else if err != nil {
-		log.Fatal(err)
+	if err != nil {
+		return candidates, fmt.Errorf("unable to load configuration for url %q: %w", prefix, err)
 	}
 
 	client := s3.NewFromConfig(cfg)
@@ -178,15 +179,12 @@ func s3_list(prefix string, silent bool) (candidates []string) {
 	//
 	// Attempt bucket name autocompletion
 	//
-	if prefix == "" {
+	if keyPrefix == "" {
 		listBucketsParams := &s3.ListBucketsInput{}
 		response, err := client.ListBuckets(context.TODO(), listBucketsParams)
-		if err != nil && silent {
-			return candidates
-		} else if err != nil {
-			log.Fatal(err)
+		if err != nil {
+			return candidates, fmt.Errorf("unable to ListBuckets: %w", err)
 		}
-
 		matchingBuckets := []string{}
 		for _, b := range(response.Buckets) {
 			if strings.HasPrefix(*b.Name, bucket) {
@@ -196,12 +194,12 @@ func s3_list(prefix string, silent bool) (candidates []string) {
 
 		if len(matchingBuckets) == 1 {
 			bucket = matchingBuckets[0]
-			prefix = ""
+			keyPrefix = ""
 		} else {
 			for _, b := range matchingBuckets {
 				candidates = append(candidates, fmt.Sprintf("//%s", b))
 			}
-			return candidates
+			return candidates, nil
 		}
 	}
 
@@ -212,19 +210,22 @@ func s3_list(prefix string, silent bool) (candidates []string) {
 		// log.Printf("prefix: %s", prefix)
 		listObjectsParams := &s3.ListObjectsInput{
 			Bucket: aws.String(bucket),
-			Prefix: aws.String(prefix),
+			Prefix: aws.String(keyPrefix),
 			Delimiter: aws.String("/"),
 		}
 
 		response, err := client.ListObjects(context.TODO(), listObjectsParams)
-		if err != nil && silent {
-			return candidates
-		} else if err != nil {
-			log.Fatal(err)
+		if err != nil {
+			return candidates, fmt.Errorf(
+				"unable to ListObjects for bucket %q prefix %q: %w",
+				bucket,
+				prefix,
+				err,
+			)
 		}
 
 		if len(response.CommonPrefixes) == 1 && len(response.Contents) == 0 {
-			prefix = *response.CommonPrefixes[0].Prefix
+			keyPrefix = *response.CommonPrefixes[0].Prefix
 			continue
 		}
 
@@ -245,7 +246,7 @@ func s3_list(prefix string, silent bool) (candidates []string) {
 		break
 	}
 
-	return candidates
+	return candidates, nil
 }
 
 type myPredictorType int
@@ -258,21 +259,24 @@ func (mpt myPredictorType) Predict(prefix string) (candidates []string) {
 		// Do nothing here
 	}
 	if parsedUrl.Scheme == "s3" {
-		return s3_list(prefix, true)
+		result, err := s3_list(prefix)
+		if err == nil {
+			return result
+		}
 	}
 	// log.Fatalf("predictor functionality for scheme %s not implemented yet", parsedUrl.Scheme)
 	return candidates
 }
 
-func cat(rawUrl string) {
+func cat(rawUrl string) error {
 	parsedUrl, err := url.Parse(rawUrl)
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if parsedUrl.Scheme == "s3" {
-		s3_cat(rawUrl)
+		return s3_cat(rawUrl)
 	}
-	log.Fatalf("cat functionality for scheme %s not implemented yet", parsedUrl.Scheme)
+	return fmt.Errorf("cat functionality for scheme %s not implemented yet", parsedUrl.Scheme)
 }
 
 func main() {
